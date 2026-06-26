@@ -332,7 +332,7 @@
         </div>
       </div>
 
-      <div class="seccion-bloque">
+      <div class="seccion-bloque" id="bloqueComentario">
         <h2>Comentario</h2>
         <textarea id="comentario" placeholder="Escribe aquí tus comentarios u observaciones..."></textarea>
       </div>
@@ -508,6 +508,13 @@ function renderFormulario(data){
   document.getElementById('subtituloFormulario').textContent =
     `Evaluado: ${ESTADO.nombreEvaluado} · Cargo: ${ESTADO.cargo} · Periodo: ${ESTADO.periodo}`;
 
+  // El comentario solo lo registra el evaluador; se integra al informe final.
+  if(ESTADO.rol === 'evaluado'){
+    hide('bloqueComentario');
+  }else{
+    show('bloqueComentario');
+  }
+
   const estadoPar = document.getElementById('estadoPar');
   const autoOk = ESTADO.rol === 'evaluado' ? data.yaCompleto : data.otroCompleto;
   const jefeOk = ESTADO.rol === 'evaluador' ? data.yaCompleto : data.otroCompleto;
@@ -631,10 +638,6 @@ function renderPreview(p){
       </tr>
     </table>
 
-    <div class="comentario-box">
-      <strong>Comentario Autoevaluación</strong>
-      ${p.auto.comentario || '—'}
-    </div>
     <div class="comentario-box" id="cajaComentarioJefe">
       <strong>Comentario Jefatura</strong>
       <span id="textoComentarioJefe">${p.jefe.comentario || '—'}</span>
