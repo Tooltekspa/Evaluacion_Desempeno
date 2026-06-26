@@ -332,11 +332,6 @@
         </div>
       </div>
 
-      <div class="seccion-bloque" id="bloqueComentario">
-        <h2>Comentario</h2>
-        <textarea id="comentario" placeholder="Escribe aquí tus comentarios u observaciones..."></textarea>
-      </div>
-
       <div id="formError" class="alert alert-error hidden"></div>
       <button type="submit" class="btn-primary btn-block" id="btnGuardar">Enviar mi evaluación</button>
     </form>
@@ -508,13 +503,6 @@ function renderFormulario(data){
   document.getElementById('subtituloFormulario').textContent =
     `Evaluado: ${ESTADO.nombreEvaluado} · Cargo: ${ESTADO.cargo} · Periodo: ${ESTADO.periodo}`;
 
-  // El comentario solo lo registra el evaluador; se integra al informe final.
-  if(ESTADO.rol === 'evaluado'){
-    hide('bloqueComentario');
-  }else{
-    show('bloqueComentario');
-  }
-
   const estadoPar = document.getElementById('estadoPar');
   const autoOk = ESTADO.rol === 'evaluado' ? data.yaCompleto : data.otroCompleto;
   const jefeOk = ESTADO.rol === 'evaluador' ? data.yaCompleto : data.otroCompleto;
@@ -536,8 +524,6 @@ function renderFormulario(data){
         document.getElementById('v_'+a).textContent = data.respuestasPrevias[a];
         document.getElementById('s_'+a).disabled = true;
       });
-      document.getElementById('comentario').value = data.respuestasPrevias.comentario || '';
-      document.getElementById('comentario').disabled = true;
     }
     if(data.otroCompleto){
       show('btnVerPreview');
@@ -559,7 +545,7 @@ document.getElementById('formEval').addEventListener('submit', async (e)=>{
   e.preventDefault();
   hide('formError');
 
-  const respuestas = {comentario: document.getElementById('comentario').value.trim()};
+  const respuestas = {comentario: ''};
   ATRIBUTOS.forEach(a=> respuestas[a] = Number(document.getElementById('s_'+a).value));
 
   const resp = await api('guardarRespuestas', {
