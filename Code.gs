@@ -518,8 +518,9 @@ function construirInformePDF(p) {
   slide.getPlaceholders().forEach(function(ph){ try { ph.asShape().remove(); } catch(e){} });
 
   /** Helper: dibuja una barra de progreso horizontal con etiqueta y nota a la derecha */
-  function dibujarBarra(slide, x, y, ancho, alto, valor0a100, colorBarra, etiqueta, notaTexto) {
-    const pistaAncho = ancho - 70;
+  function dibujarBarra(slide, x, y, ancho, alto, valor0a100, colorBarra, etiqueta, notaTexto, anchoNota) {
+    anchoNota = anchoNota || 62;
+    const pistaAncho = ancho - anchoNota - 8;
     const pista = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, pistaAncho, alto);
     pista.getFill().setSolidFill('#E2E8EE');
     pista.getBorder().setTransparent();
@@ -534,13 +535,23 @@ function construirInformePDF(p) {
       etiq.getText().getTextStyle().setFontSize(7).setForegroundColor('#6B7785');
     }
 
-    const notaBox = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x + pistaAncho + 6, y - 1, 62, alto + 2);
+    const notaBox = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x + pistaAncho + 6, y - 1, anchoNota, alto + 2);
     notaBox.getFill().setSolidFill('#767676');
     notaBox.getBorder().setTransparent();
-    const notaTxt = slide.insertTextBox(notaTexto, x + pistaAncho + 6, y - 1, 62, alto + 2);
+    const notaTxt = slide.insertTextBox(notaTexto, x + pistaAncho + 6, y - 1, anchoNota, alto + 2);
     notaTxt.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
-    notaTxt.getText().getTextStyle().setFontSize(7).setBold(true).setForegroundColor('#FFFFFF');
+    notaTxt.getText().getTextStyle().setFontSize(6.5).setBold(true).setForegroundColor('#FFFFFF');
   }
+
+  /** Abreviación corta de la clasificación, para que quepa junto al número en las barras pequeñas */
+  function clasifAbrev(nota) {
+    const c = clasificar(Number(nota));
+    if (c === 'MEJORA NECESARIA') return 'M. Necesaria';
+    if (c === 'EFICAZ') return 'Eficaz';
+    return 'Supera';
+  }
+
+  function round1Local(n) { return Math.round(Number(n) * 10) / 10; }
 
   let y = 0;
 
@@ -579,9 +590,11 @@ function construirInformePDF(p) {
   resultText.getText().getTextStyle().setFontSize(10).setBold(true).setForegroundColor('#FFFFFF');
   y += 36;
 
-  // ---- Comparativo Autoevaluación / Jefatura (barras grandes) ----
-  dibujarBarra(slide, M, y, (ANCHO/2)-M-6, 9, r.resultadoAuto, '#0081B0', 'AUTOEVALUACIÓN (40%)', String(r.resultadoAuto));
-  dibujarBarra(slide, ANCHO/2+6, y, (ANCHO/2)-M-6, 9, r.resultadoJefe, '#25638F', 'JEFATURA (60%)', String(r.resultadoJefe));
+  // ---- Comparativo Autoevaluación / Jefatura (barras grandes, puntaje real sin ponderar) ----
+  const puntajeAutoReal = round1Local(Number(r.cdcAuto) + Number(r.valoresAuto));
+  const puntajeJefeReal = round1Local(Number(r.cdcJefe) + Number(r.valoresJefe));
+  dibujarBarra(slide, M, y, (ANCHO/2)-M-6, 9, puntajeAutoReal, '#0081B0', 'AUTOEVALUACIÓN (40%)', puntajeAutoReal + ' · ' + clasifAbrev(puntajeAutoReal), 78);
+  dibujarBarra(slide, ANCHO/2+6, y, (ANCHO/2)-M-6, 9, puntajeJefeReal, '#25638F', 'JEFATURA (60%)', puntajeJefeReal + ' · ' + clasifAbrev(puntajeJefeReal), 78);
   y += 24;
 
   // ---- Sección CDC (60%) ----
@@ -607,8 +620,8 @@ function construirInformePDF(p) {
     const label = slide.insertTextBox(a[0], M, y, seccionAncho, 10);
     label.getText().getTextStyle().setFontSize(7.5).setForegroundColor('#222222');
     y += 11;
-    dibujarBarra(slide, M, y, colAAncho, 7, a[1], '#0081B0', '', String(a[1]));
-    dibujarBarra(slide, M + colAAncho + 12, y, colAAncho, 7, a[2], '#25638F', '', String(a[2]));
+    dibujarBarra(slide, M, y, colAAncho, 7, a[1], '#0081B0', '', a[1] + ' · ' + clasifAbrev(a[1]), 78);
+    dibujarBarra(slide, M + colAAncho + 12, y, colAAncho, 7, a[2], '#25638F', '', a[2] + ' · ' + clasifAbrev(a[2]), 78);
     y += 14;
   });
   y += 4;
@@ -626,8 +639,8 @@ function construirInformePDF(p) {
     const label = slide.insertTextBox(a[0], M, y, seccionAncho, 10);
     label.getText().getTextStyle().setFontSize(7.5).setForegroundColor('#222222');
     y += 11;
-    dibujarBarra(slide, M, y, colAAncho, 7, a[1], '#0081B0', '', String(a[1]));
-    dibujarBarra(slide, M + colAAncho + 12, y, colAAncho, 7, a[2], '#25638F', '', String(a[2]));
+    dibujarBarra(slide, M, y, colAAncho, 7, a[1], '#0081B0', '', a[1] + ' · ' + clasifAbrev(a[1]), 78);
+    dibujarBarra(slide, M + colAAncho + 12, y, colAAncho, 7, a[2], '#25638F', '', a[2] + ' · ' + clasifAbrev(a[2]), 78);
     y += 14;
   });
   y += 6;
