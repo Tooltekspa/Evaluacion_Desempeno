@@ -81,7 +81,7 @@ function handle(e) {
         result = login(body.rut || params.rut);
         break;
       case 'loginAdmin':
-        result = loginAdmin(body.rut, body.clave);
+        result = loginAdmin(body.rut, body.clave, body.userAgent);
         break;
       case 'adminListarProcesos':
         result = adminListarProcesos(body.adminToken);
@@ -837,18 +837,42 @@ function construirInformeHTML(p, paraPdf) {
  *    en CacheService del servidor) en vez de re-enviar la clave en cada acción.
  * ======================================================================= */
 
-function loginAdmin(rutRaw, clave) {
+function loginAdmin(rutRaw, clave, userAgent) {
   const ss = getSS();
   const config = getConfig(ss);
   if (!config.adminHash) {
     return { ok: false, error: 'No hay clave de administrador configurada. Define Config!Admin_Hash.' };
   }
   if (!clave || sha256(clave) !== config.adminHash) {
+    registrarLoginAdmin(ss, rutRaw, 'FALLIDO', userAgent);
     return { ok: false, error: 'Clave de administrador incorrecta.' };
   }
   const token = Utilities.getUuid();
   CacheService.getScriptCache().put('admin_' + token, normalizaRut(rutRaw) || 'admin', 7200); // 2 horas
+  registrarLoginAdmin(ss, rutRaw, 'EXITOSO', userAgent);
   return { ok: true, adminToken: token };
+}
+
+/**
+ * Registra un intento de login de administrador (exitoso o fallido) en la pestaña 'Log_Admin'.
+ * La pestaña se crea automáticamente la primera vez con sus encabezados.
+ * NOTA: Apps Script no expone la IP real del cliente en un Web App, por lo que se
+ * registra el User-Agent del navegador (enviado desde el frontend) como identificador disponible.
+ */
+function registrarLoginAdmin(ss, rutRaw, resultado, userAgent) {
+  try {
+    let log = ss.getSheetByName('Log_Admin');
+    if (!log) {
+      log = ss.insertSheet('Log_Admin');
+      log.appendRow(['Fecha/Hora', 'RUT ingresado', 'Resultado', 'Navegador (User-Agent)']);
+      log.getRange(1, 1, 1, 4).setFontWeight('bold');
+      log.setFrozenRows(1);
+    }
+    const ahora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    log.appendRow([ahora, rutRaw || '(sin RUT)', resultado, userAgent || '(no disponible)']);
+  } catch (e) {
+    Logger.log('Error registrando login admin: ' + e.message);
+  }
 }
 
 function validarAdminToken(token) {
