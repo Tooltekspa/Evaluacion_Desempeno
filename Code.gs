@@ -506,180 +506,177 @@ function autorizarPermisoSlides() {
 
 function construirInformePDF(p) {
   const r = p.resultado;
-  const color = colorClasificacionHex(r.clasificacion);
+  const colorHex = colorClasificacionHex(r.clasificacion); // ej. '#FFB703'
 
-  const presentation = SlidesApp.create('TEMP_Informe_' + p.nombreEvaluado);
-  const ANCHO = presentation.getPageWidth();
-  const ALTO = presentation.getPageHeight();
-  const M = 24; // margen lateral, más generoso
+  const doc = DocumentApp.create('TEMP_Informe_' + p.nombreEvaluado);
+  const body = doc.getBody();
+  body.setMarginTop(28).setMarginBottom(28).setMarginLeft(36).setMarginRight(36);
+  // Tamaño carta (8.5in x 11in) en puntos — DocumentApp.PageSize no existe como setter directo,
+  // pero el documento nuevo de Google Docs ya nace en tamaño carta (Letter) por defecto en cuentas US/LatAm.
+  body.clear();
 
-  const slide1 = presentation.getSlides()[0];
-  slide1.getShapes().forEach(function(s){ s.remove(); });
-  slide1.getPlaceholders().forEach(function(ph){ try { ph.asShape().remove(); } catch(e){} });
-  const slide2 = presentation.appendSlide();
-  slide2.getShapes().forEach(function(s){ s.remove(); });
-  slide2.getPlaceholders().forEach(function(ph){ try { ph.asShape().remove(); } catch(e){} });
-
-  /** Helper: dibuja una barra de progreso horizontal con etiqueta arriba y nota a la derecha */
-  function dibujarBarra(slide, x, y, ancho, alto, valor0a100, colorBarra, etiqueta, notaTexto, anchoNota) {
-    anchoNota = anchoNota || 70;
-    const pistaAncho = ancho - anchoNota - 10;
-    const pista = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, pistaAncho, alto);
-    pista.getFill().setSolidFill('#E2E8EE');
-    pista.getBorder().setTransparent();
-
-    const relleno = Math.max(8, pistaAncho * Math.min(Math.max(valor0a100,0),100) / 100);
-    const barra = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, relleno, alto);
-    barra.getFill().setSolidFill(colorBarra);
-    barra.getBorder().setTransparent();
-
-    if (etiqueta) {
-      const etiq = slide.insertTextBox(etiqueta, x, y - 13, pistaAncho, 12);
-      etiq.getText().getTextStyle().setFontSize(7.5).setForegroundColor('#6B7785');
-    }
-
-    const notaBox = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x + pistaAncho + 8, y - 1, anchoNota, alto + 2);
-    notaBox.getFill().setSolidFill('#767676');
-    notaBox.getBorder().setTransparent();
-    const notaTxt = slide.insertTextBox(notaTexto, x + pistaAncho + 8, y - 1, anchoNota, alto + 2);
-    notaTxt.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
-    notaTxt.getText().getTextStyle().setFontSize(7).setBold(true).setForegroundColor('#FFFFFF');
-  }
-
-  /** Helper: tarjeta de fondo gris claro, redondeada, para encerrar una sección */
-  function tarjetaFondo(slide, x, y, ancho, alto) {
-    const card = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, ancho, alto);
-    card.getFill().setSolidFill('#F4F6F8');
-    card.getBorder().setTransparent();
-    card.sendToBack();
-    return card;
-  }
-
-  /** Abreviación corta de la clasificación, para que quepa junto al número en las barras pequeñas */
+  /** Abreviación corta de la clasificación */
   function clasifAbrev(nota) {
     const c = clasificar(Number(nota));
     if (c === 'MEJORA NECESARIA') return 'M. Necesaria';
     if (c === 'EFICAZ') return 'Eficaz';
     return 'Supera';
   }
-
   function round1Local(n) { return Math.round(Number(n) * 10) / 10; }
 
-  function dibujarHeader(slide, subtitulo) {
-    const header = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, 0, ANCHO, 54);
-    header.getFill().setSolidFill('#25638F');
-    header.getBorder().setTransparent();
-    try {
-      const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_BASE64), 'image/png', 'logo.png');
-      slide.insertImage(logoBlob, 18, 10, 34, 34 * (106/300));
-    } catch(e) {}
-    const tituloBox = slide.insertTextBox('Informe de Evaluación de Desempeño\n' + p.empresa + ' · ' + p.periodo + (subtitulo ? ' · ' + subtitulo : ''), 62, 8, ANCHO-86, 40);
-    const tituloTxt = tituloBox.getText();
-    const saltoIdx = tituloTxt.asString().indexOf('\n');
-    tituloTxt.getRange(0, saltoIdx).getTextStyle().setFontSize(13).setBold(true).setForegroundColor('#FFFFFF');
-    tituloTxt.getRange(saltoIdx+1, tituloTxt.asString().length).getTextStyle().setFontSize(8).setForegroundColor('#D6E8F2');
+  /** Tabla 1x1 usada como "tarjeta" de fondo gris, con el contenido pasado como párrafos previamente armados no aplica aquí;
+   *  se usa simplemente para separar visualmente secciones mediante un borde superior de color. */
+  function lineaSeparadora(colorLinea) {
+    const tabla = body.appendTable([['']]);
+    tabla.setBorderWidth(0);
+    const celda = tabla.getCell(0, 0);
+    celda.setBackgroundColor(colorLinea);
+    celda.setPaddingTop(1).setPaddingBottom(1);
+    tabla.setColumnWidth(0, 520);
   }
 
-  function dibujarFooter(slide, paginaTexto) {
-    const footer = slide.insertTextBox(p.empresa + ' · Herramientas para construir el futuro · ' + paginaTexto, M, ALTO-18, ANCHO-2*M, 14);
-    footer.getText().getTextStyle().setFontSize(6.5).setForegroundColor('#888888');
+  /** Dibuja una barra de progreso como tabla de 2 columnas (relleno + resto) seguida de una nota a la derecha.
+   *  Se simula con UNA tabla de 3 celdas: [relleno color][resto gris claro][nota gris oscuro con texto]. */
+  function filaBarra(etiqueta, valorAuto, valorJefe) {
+    const p1 = body.appendParagraph(etiqueta);
+    p1.setFontSize(8.5).setForegroundColor('#222222').setSpacingBefore(4).setSpacingAfter(2);
+
+    const tabla = body.appendTable([['', '', '', '', '', '']]);
+    tabla.setBorderWidth(0);
+
+    function pintarBarra(colAncho1, colAncho2, colAnchoNota, valor, colorBarra, notaTexto, offsetCol) {
+      const anchoTotal = colAncho1 + colAncho2;
+      const relleno = Math.max(8, anchoTotal * Math.min(Math.max(valor,0),100) / 100);
+      const resto = Math.max(2, anchoTotal - relleno);
+
+      const cRelleno = tabla.getCell(0, offsetCol);
+      cRelleno.setBackgroundColor(colorBarra);
+      cRelleno.setPaddingTop(2).setPaddingBottom(2);
+      tabla.setColumnWidth(offsetCol, relleno);
+
+      const cResto = tabla.getCell(0, offsetCol + 1);
+      cResto.setBackgroundColor('#E2E8EE');
+      cResto.setPaddingTop(2).setPaddingBottom(2);
+      tabla.setColumnWidth(offsetCol + 1, resto);
+
+      const cNota = tabla.getCell(0, offsetCol + 2);
+      cNota.setBackgroundColor('#767676');
+      cNota.setPaddingTop(2).setPaddingBottom(2);
+      tabla.setColumnWidth(offsetCol + 2, colAnchoNota);
+      const notaPar = cNota.getChild(0).asParagraph();
+      notaPar.setText(notaTexto);
+      notaPar.setForegroundColor('#FFFFFF').setBold(true).setFontSize(7.5);
+      notaPar.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    }
+
+    const colBarra = 145; // ancho aproximado de pista para cada lado
+    const colNota = 70;
+    pintarBarra(colBarra, 0, colNota, valorAuto, '#0081B0', valorAuto + ' · ' + clasifAbrev(valorAuto), 0);
+    pintarBarra(colBarra, 0, colNota, valorJefe, '#25638F', valorJefe + ' · ' + clasifAbrev(valorJefe), 3);
   }
 
-  const seccionAncho = ANCHO - 2*M;
-  const colAAncho = (seccionAncho - 40 - 16) / 2;
-
-  /** Dibuja una sección completa (título + lista de atributos con 2 barras cada uno) dentro de una tarjeta */
-  function dibujarSeccion(slide, yInicio, titulo, pesoTxt, atributos) {
-    const altoFila = 30;
-    const altoTarjeta = 30 + atributos.length * altoFila + 10;
-    tarjetaFondo(slide, M, yInicio, seccionAncho, altoTarjeta);
-
-    let y = yInicio + 14;
-    const tit = slide.insertTextBox(titulo + '   ' + pesoTxt, M + 16, y, seccionAncho - 32, 14);
-    const ttxt = tit.getText();
-    ttxt.getRange(0, titulo.length).getTextStyle().setFontSize(11).setBold(true).setForegroundColor('#25638F');
-    ttxt.getRange(titulo.length, ttxt.asString().length).getTextStyle().setFontSize(8).setForegroundColor('#6B7785');
-    y += 22;
-
-    atributos.forEach(function(a){
-      const label = slide.insertTextBox(a[0], M + 16, y, seccionAncho - 32, 11);
-      label.getText().getTextStyle().setFontSize(8).setForegroundColor('#222222');
-      y += 13;
-      dibujarBarra(slide, M + 16, y, colAAncho, 8, a[1], '#0081B0', '', a[1] + ' · ' + clasifAbrev(a[1]), 78);
-      dibujarBarra(slide, M + 16 + colAAncho + 16, y, colAAncho, 8, a[2], '#25638F', '', a[2] + ' · ' + clasifAbrev(a[2]), 78);
-      y += altoFila - 13;
-    });
-
-    return yInicio + altoTarjeta;
+  /** Título de sección con color institucional */
+  function tituloSeccion(texto, pesoTxt) {
+    const par = body.appendParagraph(texto + '  ' + pesoTxt);
+    par.editAsText().setBold(0, texto.length - 1, true).setFontSize(0, texto.length - 1, 12).setForegroundColor(0, texto.length - 1, '#25638F');
+    const restoInicio = texto.length;
+    if (pesoTxt) {
+      par.editAsText().setFontSize(restoInicio, par.getText().length - 1, 8).setForegroundColor(restoInicio, par.getText().length - 1, '#6B7785');
+    }
+    par.setSpacingBefore(14).setSpacingAfter(6);
   }
 
-  // ===================== PÁGINA 1: Resumen general + CDC =====================
-  dibujarHeader(slide1, 'Página 1 de 2');
-  let y1 = 70;
+  // ===================== HEADER =====================
+  const headerTabla = body.appendTable([['', '']]);
+  headerTabla.setBorderWidth(0);
+  const celdaLogo = headerTabla.getCell(0, 0);
+  celdaLogo.setBackgroundColor('#25638F');
+  headerTabla.setColumnWidth(0, 60);
+  try {
+    const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_BASE64), 'image/png', 'logo.png');
+    celdaLogo.getChild(0).asParagraph().clear();
+    const img = celdaLogo.appendImage(logoBlob);
+    img.setWidth(36); img.setHeight(36 * (106/300));
+  } catch(e) {}
 
-  // Tarjeta resumen: nombre/cargo + badge resultado final
-  const altoResumen = 48;
-  tarjetaFondo(slide1, M, y1, seccionAncho, altoResumen);
-  const colDerAncho = 140;
-  const colDerX = ANCHO - M - colDerAncho - 14;
+  const celdaTitulo = headerTabla.getCell(0, 1);
+  celdaTitulo.setBackgroundColor('#25638F');
+  headerTabla.setColumnWidth(1, 460);
+  const parTitulo = celdaTitulo.getChild(0).asParagraph();
+  parTitulo.setText('Informe de Evaluación de Desempeño');
+  parTitulo.setForegroundColor('#FFFFFF').setBold(true).setFontSize(13);
+  const parSub = celdaTitulo.appendParagraph(p.empresa + ' · ' + p.periodo);
+  parSub.setForegroundColor('#D6E8F2').setFontSize(8.5);
 
-  const nombreBox = slide1.insertTextBox(p.nombreEvaluado + '\n' + p.cargo + ' · Evaluador: ' + p.nombreEvaluador, M + 16, y1 + 12, colDerX - M - 16, 28);
-  const ntxt = nombreBox.getText();
-  const saltoN = ntxt.asString().indexOf('\n');
-  ntxt.getRange(0, saltoN).getTextStyle().setFontSize(12).setBold(true).setForegroundColor('#1F2D3A');
-  ntxt.getRange(saltoN+1, ntxt.asString().length).getTextStyle().setFontSize(8.5).setForegroundColor('#6B7785');
+  body.appendParagraph('').setSpacingAfter(10);
 
-  const resultBox = slide1.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, colDerX + 14, y1 + 8, colDerAncho, 32);
-  resultBox.getFill().setSolidFill(color);
-  resultBox.getBorder().setTransparent();
-  const resultText = slide1.insertTextBox(String(r.resultadoFinal) + ' · ' + r.clasificacion, colDerX + 14, y1 + 16, colDerAncho, 18);
-  resultText.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
-  resultText.getText().getTextStyle().setFontSize(11).setBold(true).setForegroundColor('#FFFFFF');
-  y1 += altoResumen + 18;
+  // ===================== TARJETA RESUMEN: nombre/cargo + resultado final =====================
+  const resumenTabla = body.appendTable([['', '']]);
+  resumenTabla.setBorderWidth(0);
+  const cInfo = resumenTabla.getCell(0, 0);
+  cInfo.setBackgroundColor('#F4F6F8');
+  resumenTabla.setColumnWidth(0, 360);
+  const parNombre = cInfo.getChild(0).asParagraph();
+  parNombre.setText(p.nombreEvaluado);
+  parNombre.setBold(true).setFontSize(13).setForegroundColor('#1F2D3A');
+  const parCargo = cInfo.appendParagraph(p.cargo + ' · Evaluador: ' + p.nombreEvaluador);
+  parCargo.setFontSize(9).setForegroundColor('#6B7785');
 
-  // Comparativo Autoevaluación / Jefatura
+  const cResultado = resumenTabla.getCell(0, 1);
+  cResultado.setBackgroundColor(colorHex);
+  resumenTabla.setColumnWidth(1, 130);
+  const parResultado = cResultado.getChild(0).asParagraph();
+  parResultado.setText(String(r.resultadoFinal) + ' · ' + r.clasificacion);
+  parResultado.setBold(true).setFontSize(12).setForegroundColor('#FFFFFF');
+  parResultado.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+
+  body.appendParagraph('').setSpacingAfter(8);
+
+  // ===================== COMPARATIVO AUTOEVALUACIÓN / JEFATURA =====================
   const puntajeAutoReal = round1Local(Number(r.cdcAuto) + Number(r.valoresAuto));
   const puntajeJefeReal = round1Local(Number(r.cdcJefe) + Number(r.valoresJefe));
-  dibujarBarra(slide1, M, y1, (seccionAncho/2)-10, 11, puntajeAutoReal, '#0081B0', 'AUTOEVALUACIÓN (40%)', puntajeAutoReal + ' · ' + clasifAbrev(puntajeAutoReal), 82);
-  dibujarBarra(slide1, M + seccionAncho/2 + 10, y1, (seccionAncho/2)-10, 11, puntajeJefeReal, '#25638F', 'JEFATURA (60%)', puntajeJefeReal + ' · ' + clasifAbrev(puntajeJefeReal), 82);
-  y1 += 30;
 
-  // Sección CDC
-  const atribsCDC = [
-    ['Comprender (20%)', p.auto.comprender, p.jefe.comprender],
-    ['Desear (20%)', p.auto.desear, p.jefe.desear],
-    ['Capacidad de Hacerlo (20%)', p.auto.capacidad, p.jefe.capacidad]
-  ];
-  dibujarSeccion(slide1, y1, 'CDC', '(Ponderación 60% del bloque competencias)', atribsCDC);
+  const etiquetasComp = body.appendParagraph('AUTOEVALUACIÓN (40%)                                                              JEFATURA (60%)');
+  etiquetasComp.setFontSize(7.5).setForegroundColor('#6B7785').setSpacingAfter(2);
 
-  dibujarFooter(slide1, 'Página 1 de 2');
+  filaBarra('', puntajeAutoReal, puntajeJefeReal);
 
-  // ===================== PÁGINA 2: Valores Corporativos + comentario =====================
-  dibujarHeader(slide2, 'Página 2 de 2');
-  let y2 = 70;
+  body.appendParagraph('').setSpacingAfter(10);
 
-  const atribsValores = [
-    ['Trabajamos Juntos Construyendo Valor (10%)', p.auto.trabajamos, p.jefe.trabajamos],
-    ['Nos Comprometemos con un Servicio de Excelencia (10%)', p.auto.excelencia, p.jefe.excelencia],
-    ['Nos Desafiamos a Mejorar Cada Día (10%)', p.auto.desafio, p.jefe.desafio],
-    ['Cultivamos y Valoramos la Confianza (10%)', p.auto.confianza, p.jefe.confianza]
-  ];
-  y2 = dibujarSeccion(slide2, y2, 'VALORES CORPORATIVOS', '(Ponderación 40% del bloque competencias)', atribsValores);
-  y2 += 22;
+  // ===================== SECCIÓN CDC =====================
+  tituloSeccion('CDC', '(Ponderación 60% del bloque competencias)');
+  filaBarra('Comprender (20%)', p.auto.comprender, p.jefe.comprender);
+  filaBarra('Desear (20%)', p.auto.desear, p.jefe.desear);
+  filaBarra('Capacidad de Hacerlo (20%)', p.auto.capacidad, p.jefe.capacidad);
 
-  // Comentario jefatura, en su propia tarjeta
-  const altoComentario = 70;
-  tarjetaFondo(slide2, M, y2, seccionAncho, altoComentario);
-  const labelComent = slide2.insertTextBox('COMENTARIO JEFATURA', M + 16, y2 + 12, seccionAncho - 32, 12);
-  labelComent.getText().getTextStyle().setFontSize(9).setBold(true).setForegroundColor('#25638F');
-  const textoComent = slide2.insertTextBox(p.jefe.comentario || '—', M + 16, y2 + 28, seccionAncho - 32, altoComentario - 36);
-  textoComent.getText().getTextStyle().setFontSize(9).setForegroundColor('#222222');
+  // ===================== SECCIÓN VALORES CORPORATIVOS =====================
+  tituloSeccion('VALORES CORPORATIVOS', '(Ponderación 40% del bloque competencias)');
+  filaBarra('Trabajamos Juntos Construyendo Valor (10%)', p.auto.trabajamos, p.jefe.trabajamos);
+  filaBarra('Nos Comprometemos con un Servicio de Excelencia (10%)', p.auto.excelencia, p.jefe.excelencia);
+  filaBarra('Nos Desafiamos a Mejorar Cada Día (10%)', p.auto.desafio, p.jefe.desafio);
+  filaBarra('Cultivamos y Valoramos la Confianza (10%)', p.auto.confianza, p.jefe.confianza);
 
-  dibujarFooter(slide2, 'Página 2 de 2');
+  body.appendParagraph('').setSpacingAfter(10);
 
-  presentation.saveAndClose();
+  // ===================== COMENTARIO JEFATURA =====================
+  const comentTabla = body.appendTable([['']]);
+  comentTabla.setBorderWidth(0);
+  const cComent = comentTabla.getCell(0, 0);
+  cComent.setBackgroundColor('#F4F6F8');
+  comentTabla.setColumnWidth(0, 490);
+  const parLabelComent = cComent.getChild(0).asParagraph();
+  parLabelComent.setText('COMENTARIO JEFATURA');
+  parLabelComent.setBold(true).setFontSize(9).setForegroundColor('#25638F');
+  const parTextoComent = cComent.appendParagraph(p.jefe.comentario || '—');
+  parTextoComent.setFontSize(9).setForegroundColor('#222222');
 
-  const file = DriveApp.getFileById(presentation.getId());
+  // ===================== FOOTER =====================
+  const footerPar = body.appendParagraph(p.empresa + ' · Herramientas para construir el futuro');
+  footerPar.setFontSize(7).setForegroundColor('#888888').setSpacingBefore(16);
+
+  doc.saveAndClose();
+
+  const file = DriveApp.getFileById(doc.getId());
   const pdfBlob = file.getAs('application/pdf');
   file.setTrashed(true);
 
