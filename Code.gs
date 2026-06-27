@@ -596,27 +596,26 @@ function construirInformePDF(p) {
   }
 
   // ===================== HEADER =====================
-  const headerTabla = body.appendTable([['', '']]);
+  const headerTabla = body.appendTable([['']]);
   headerTabla.setBorderWidth(0);
-  const celdaLogo = headerTabla.getCell(0, 0);
-  celdaLogo.setBackgroundColor('#25638F');
-  headerTabla.setColumnWidth(0, 60);
+  const celdaHeader = headerTabla.getCell(0, 0);
+  celdaHeader.setBackgroundColor('#25638F');
+  celdaHeader.setPaddingTop(6).setPaddingBottom(6).setPaddingLeft(10);
+  headerTabla.setColumnWidth(0, 520);
+
+  const parTitulo = celdaHeader.getChild(0).asParagraph();
+  parTitulo.setText('');
   try {
     const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_BASE64), 'image/png', 'logo.png');
-    const parLogo = celdaLogo.getChild(0).asParagraph();
-    const img = parLogo.insertInlineImage(0, logoBlob);
-    img.setWidth(36); img.setHeight(36 * (106/300));
+    const img = parTitulo.insertInlineImage(0, logoBlob);
+    img.setWidth(30); img.setHeight(30 * (106/300));
   } catch(e) {
     Logger.log('Error insertando logo: ' + e.message);
   }
+  const textoTitulo = parTitulo.appendText('  Informe de Evaluación de Desempeño');
+  textoTitulo.setForegroundColor('#FFFFFF').setBold(true).setFontSize(13);
 
-  const celdaTitulo = headerTabla.getCell(0, 1);
-  celdaTitulo.setBackgroundColor('#25638F');
-  headerTabla.setColumnWidth(1, 460);
-  const parTitulo = celdaTitulo.getChild(0).asParagraph();
-  parTitulo.setText('Informe de Evaluación de Desempeño');
-  parTitulo.setForegroundColor('#FFFFFF').setBold(true).setFontSize(13);
-  const parSub = celdaTitulo.appendParagraph(p.empresa + ' · ' + p.periodo);
+  const parSub = celdaHeader.appendParagraph(p.empresa + ' · ' + p.periodo);
   parSub.setForegroundColor('#D6E8F2').setFontSize(8.5);
 
   body.appendParagraph('').setSpacingAfter(10);
