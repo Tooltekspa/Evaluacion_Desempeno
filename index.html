@@ -148,6 +148,18 @@
 
   .hidden{display:none !important;}
 
+  /* Cuadros de selección de rol (login) */
+  .rol-card{
+    flex:1;min-width:160px;border:2px solid var(--gris-300);border-radius:var(--radio);
+    padding:22px 18px;text-align:center;cursor:pointer;transition:border-color .15s, background .15s;
+  }
+  .rol-card:hover{border-color:var(--azul-secundario);background:#f7fbfd;}
+  .rol-card.rol-card-disabled{opacity:.4;cursor:not-allowed;}
+  .rol-card.rol-card-disabled:hover{border-color:var(--gris-300);background:none;}
+  .rol-card-icon{font-size:30px;margin-bottom:8px;}
+  .rol-card-titulo{font-weight:700;font-size:15px;color:var(--azul-oscuro);}
+  .rol-card-desc{font-size:12px;color:var(--gris-600);margin-top:4px;}
+
   /* Panel Admin */
   .tab-active{background:var(--azul-oscuro) !important;color:#fff !important;}
   .proceso-row{
@@ -170,6 +182,13 @@
   .nomina-actions{display:flex;gap:10px;justify-content:flex-end;}
   .btn-danger{background:var(--rojo);color:#fff;}
   .btn-sm{padding:9px 16px;font-size:13px;}
+
+  table.tabla-admin{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.tabla-admin th{
+    background:var(--gris-100);padding:10px;text-align:center;font-weight:700;color:var(--azul-oscuro);
+    white-space:nowrap;
+  }
+  table.tabla-admin td{padding:10px;border-bottom:1px solid var(--gris-300);vertical-align:middle;}
   .spinner{
     border:3px solid var(--gris-300);border-top:3px solid var(--azul-oscuro);
     border-radius:50%;width:28px;height:28px;animation:spin 0.8s linear infinite;margin:0 auto;
@@ -243,9 +262,24 @@
 
   <!-- ====================== SELECCIÓN DE ROL (si tiene más de uno) ====================== -->
   <div id="vista-seleccion" class="card hidden">
-    <h1>Tienes más de un proceso disponible</h1>
-    <p class="subtitle">Selecciona la evaluación en la que deseas participar.</p>
-    <div id="listaRoles"></div>
+    <h1>¿Cómo quieres ingresar?</h1>
+    <p class="subtitle" id="seleccionSubtitulo">Tienes procesos disponibles como evaluado y como evaluador. Elige con qué rol deseas continuar.</p>
+
+    <div id="seleccionRolBotones" style="display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap;">
+      <div class="rol-card" id="cardRolEvaluado">
+        <div class="rol-card-icon">📝</div>
+        <div class="rol-card-titulo">Evaluado</div>
+        <div class="rol-card-desc">Completar mi autoevaluación</div>
+      </div>
+      <div class="rol-card" id="cardRolEvaluador">
+        <div class="rol-card-icon">👤</div>
+        <div class="rol-card-titulo">Evaluador</div>
+        <div class="rol-card-desc">Evaluar a mi(s) trabajador(es)</div>
+      </div>
+    </div>
+
+    <div id="listaRoles" class="hidden"></div>
+    <button class="btn-secondary" id="btnVolverSeleccionRol" style="margin-top:10px;display:none;">← Volver a elegir rol</button>
   </div>
 
   <!-- ====================== FORMULARIO DE EVALUACIÓN ====================== -->
@@ -454,10 +488,51 @@ document.getElementById('btnLogin').addEventListener('click', async ()=>{
   }
 });
 
+let ROLES_DISPONIBLES = [];
+
 function mostrarSeleccionRoles(roles){
+  ROLES_DISPONIBLES = roles;
+  const tieneEvaluado = roles.some(r => r.rol === 'evaluado');
+  const tieneEvaluador = roles.some(r => r.rol === 'evaluador');
+
+  document.getElementById('seleccionSubtitulo').textContent =
+    'Tienes procesos disponibles. Elige con qué rol deseas continuar.';
+
+  const cardEvaluado = document.getElementById('cardRolEvaluado');
+  const cardEvaluador = document.getElementById('cardRolEvaluador');
+
+  cardEvaluado.classList.toggle('rol-card-disabled', !tieneEvaluado);
+  cardEvaluador.classList.toggle('rol-card-disabled', !tieneEvaluador);
+
+  cardEvaluado.onclick = tieneEvaluado ? ()=> filtrarYMostrarLista('evaluado') : null;
+  cardEvaluador.onclick = tieneEvaluador ? ()=> filtrarYMostrarLista('evaluador') : null;
+
+  show('seleccionRolBotones');
+  hide('listaRoles');
+  document.getElementById('btnVolverSeleccionRol').style.display = 'none';
+
+  showOnly('vista-seleccion');
+
+  // Si el usuario solo tiene un rol con varios procesos (ej. jefe con 3 evaluados),
+  // saltamos directo a la lista de ese rol.
+  if(tieneEvaluado && !tieneEvaluador){
+    filtrarYMostrarLista('evaluado');
+  }else if(tieneEvaluador && !tieneEvaluado){
+    filtrarYMostrarLista('evaluador');
+  }
+}
+
+function filtrarYMostrarLista(rol){
+  const filtrados = ROLES_DISPONIBLES.filter(r => r.rol === rol);
   const cont = document.getElementById('listaRoles');
   cont.innerHTML = '';
-  roles.forEach(r=>{
+
+  if(filtrados.length === 1){
+    iniciarProceso(filtrados[0]);
+    return;
+  }
+
+  filtrados.forEach(r=>{
     const div = document.createElement('div');
     div.className = 'seccion-bloque';
     div.style.cursor='pointer';
@@ -469,6 +544,13 @@ function mostrarSeleccionRoles(roles){
     div.addEventListener('click', ()=> iniciarProceso(r));
     cont.appendChild(div);
   });
+
+  hide('seleccionRolBotones');
+  show('listaRoles');
+  const btnVolver = document.getElementById('btnVolverSeleccionRol');
+  btnVolver.style.display = 'block';
+  btnVolver.onclick = ()=> mostrarSeleccionRoles(ROLES_DISPONIBLES);
+
   showOnly('vista-seleccion');
 }
 
@@ -734,23 +816,43 @@ async function cargarProcesosAdmin(){
   if(!resp.ok){ cont.innerHTML = `<div class="alert alert-error">${resp.error}</div>`; return; }
   if(resp.procesos.length === 0){ cont.innerHTML = `<p class="subtitle">Aún no hay procesos generados.</p>`; return; }
 
-  cont.innerHTML = resp.procesos.map(p=>{
-    const chipAuto = p.autoCompleto ? '<span class="chip chip-ok">Autoeval. OK</span>' : '<span class="chip chip-pend">Autoeval. pendiente</span>';
-    const chipJefe = p.jefeCompleto ? '<span class="chip chip-ok">Jefatura OK</span>' : '<span class="chip chip-pend">Jefatura pendiente</span>';
-    const chipEnviado = p.informeEnviado ? '<span class="chip chip-enviado">Informe enviado</span>' : '';
-    const resultado = p.resultadoFinal ? `${p.resultadoFinal} · ${p.clasificacion}` : 'Sin resultado aún';
+  const filas = resp.procesos.map(p=>{
+    const chipAuto = p.autoCompleto ? '<span class="chip chip-ok">OK</span>' : '<span class="chip chip-pend">Pendiente</span>';
+    const chipJefe = p.jefeCompleto ? '<span class="chip chip-ok">OK</span>' : '<span class="chip chip-pend">Pendiente</span>';
+    const chipEnviado = p.informeEnviado ? '<span class="chip chip-enviado">Sí</span>' : '<span class="chip chip-pend">No</span>';
     const puedeReenviar = p.autoCompleto && p.jefeCompleto;
     return `
-      <div class="proceso-row">
-        <div class="info">
-          <div class="nombre">${p.nombreEvaluado} <span style="color:var(--gris-600);font-weight:400;">— ${p.cargo}</span></div>
-          <div class="meta">Periodo: ${p.periodo} · Evaluador: ${p.nombreEvaluador} · ${resultado}</div>
-          <div style="margin-top:6px;">${chipAuto} ${chipJefe} ${chipEnviado}</div>
-        </div>
-        ${puedeReenviar ? `<button class="btn-secondary btn-sm" onclick="reenviarInformeAdmin('${p.id}')">Reenviar informe</button>` : ''}
-      </div>
+      <tr>
+        <td>
+          <div style="font-weight:700;">${p.nombreEvaluado}</div>
+          <div style="font-size:11.5px;color:var(--gris-600);">${p.cargo} · ${p.periodo} · Evaluador: ${p.nombreEvaluador}</div>
+        </td>
+        <td style="text-align:center;">${chipAuto}</td>
+        <td style="text-align:center;">${chipJefe}</td>
+        <td style="text-align:center;">${chipEnviado}</td>
+        <td style="text-align:center;">
+          ${puedeReenviar ? `<button class="btn-secondary btn-sm" onclick="reenviarInformeAdmin('${p.id}')">Reenviar</button>` : '<span style="color:var(--gris-600);font-size:12px;">—</span>'}
+        </td>
+      </tr>
     `;
   }).join('');
+
+  cont.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="tabla-admin">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Evaluado</th>
+            <th>Estado Evaluado</th>
+            <th>Estado Evaluador</th>
+            <th>Informe Enviado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 async function reenviarInformeAdmin(procesoId){
