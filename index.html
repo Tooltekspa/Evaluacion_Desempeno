@@ -27,7 +27,8 @@
     background:var(--gris-100);
     color:var(--texto);
   }
-  .app{max-width:880px;margin:0 auto;padding:0 16px 60px;}
+  .app{max-width:880px;margin:0 auto;padding:0 16px 60px;transition:max-width .15s;}
+  .app.app-full{max-width:1400px;}
   header.topbar{
     display:flex;align-items:center;justify-content:space-between;
     background:var(--blanco);padding:18px 16px;margin-bottom:24px;
@@ -441,6 +442,7 @@ function showOnly(id){
   ['vista-login','vista-login-admin','vista-admin','vista-seleccion','vista-formulario','vista-preview','vista-loading'].forEach(v=>{
     if(v===id) show(v); else hide(v);
   });
+  document.querySelector('.app').classList.toggle('app-full', id === 'vista-admin');
 }
 
 async function api(action, payload){
@@ -835,7 +837,10 @@ async function cargarProcesosAdmin(){
         <td style="font-size:12px;">${emailEvaluador}</td>
         <td style="text-align:center;">${chipEnviado}</td>
         <td style="text-align:center;">
-          ${puedeReenviar ? `<button class="btn-secondary btn-sm" onclick="reenviarInformeAdmin('${p.id}')">Reenviar</button>` : '<span style="color:var(--gris-600);font-size:12px;">—</span>'}
+          <div style="display:flex;gap:6px;justify-content:center;">
+            ${puedeReenviar ? `<button class="btn-secondary btn-sm" onclick="reenviarInformeAdmin('${p.id}')">Reenviar</button>` : ''}
+            <button class="btn-danger btn-sm" onclick="eliminarProcesoAdmin('${p.id}', '${p.nombreEvaluado.replace(/'/g,"\\'")}')">Eliminar</button>
+          </div>
         </td>
       </tr>
     `;
@@ -866,6 +871,14 @@ async function reenviarInformeAdmin(procesoId){
   showOnly('vista-admin');
   if(!resp.ok){ alert(resp.error || 'No fue posible reenviar el informe.'); return; }
   alert('Informe reenviado correctamente a: ' + resp.enviadoA);
+  cargarProcesosAdmin();
+}
+
+async function eliminarProcesoAdmin(procesoId, nombreEvaluado){
+  if(!confirm(`¿Eliminar el proceso de evaluación de "${nombreEvaluado}"?\n\nEsto borra todo su avance (autoevaluación y jefatura) y no se puede deshacer. Útil para limpiar pruebas.`)) return;
+  const resp = await api('adminEliminarProceso', {adminToken: ADMIN_TOKEN, procesoId: procesoId});
+  showOnly('vista-admin');
+  if(!resp.ok){ alert(resp.error || 'No fue posible eliminar el proceso.'); return; }
   cargarProcesosAdmin();
 }
 
