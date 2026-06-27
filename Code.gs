@@ -607,9 +607,7 @@ function construirInformePDF(p) {
   headerTabla.setColumnWidth(0, 80);
   try {
     const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_FONDO_BLANCO_BASE64), 'image/png', 'logo.png');
-    const parLogo = celdaLogo.getChild(0).asParagraph();
-    parLogo.setText('');
-    const img = parLogo.insertInlineImage(0, logoBlob);
+    const img = celdaLogo.appendImage(logoBlob);
     img.setWidth(56); img.setHeight(56 * (176/500));
   } catch(e) {
     Logger.log('Error insertando logo: ' + e.message);
