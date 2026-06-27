@@ -506,7 +506,6 @@ function construirInformeHTML(p) {
     '<td style="padding:6px 10px;text-align:center;">CDC ' + r.cdcJefe + ' · Val ' + r.valoresJefe + '</td>' +
     '</tr>' +
     '</table>' +
-    '<p><strong>Comentario Autoevaluación:</strong><br>' + (p.auto.comentario || '—') + '</p>' +
     '<p><strong>Comentario Jefatura:</strong><br>' + (p.jefe.comentario || '—') + '</p>' +
     '<p style="font-size:12px;color:#888;margin-top:24px;">' + p.empresa + ' · Herramientas para construir el futuro</p>' +
     '</div></div>';
@@ -553,7 +552,9 @@ function adminListarProcesos(token) {
       periodo: row[idx('Periodo')],
       nombreEvaluado: row[idx('Nombre_Evaluado')],
       cargo: row[idx('Cargo')],
+      emailEvaluado: row[idx('Email_Evaluado')],
       nombreEvaluador: row[idx('Nombre_Evaluador')],
+      emailEvaluador: row[idx('Email_Evaluador')],
       autoCompleto: row[idx('Auto_Completado')] === 'SI',
       jefeCompleto: row[idx('Jefe_Completado')] === 'SI',
       estado: row[idx('Estado')],
