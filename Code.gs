@@ -495,6 +495,15 @@ function confirmarEnvio(procesoId, comentarioFinalJefe) {
  * según el proyecto de Google Cloud. SlidesApp es 100% nativo (sin activaciones extra)
  * y exporta a PDF preservando colores y formas perfectamente.
  */
+/** Función temporal SOLO para forzar el prompt de autorización de Slides. Ejecutar manualmente una vez, luego se puede borrar. */
+function autorizarPermisoSlides() {
+  const p = SlidesApp.create('TEST_AUTORIZACION_BORRAR');
+  const id = p.getId();
+  p.saveAndClose();
+  DriveApp.getFileById(id).setTrashed(true);
+  Logger.log('Permiso de Slides autorizado correctamente.');
+}
+
 function construirInformePDF(p) {
   const r = p.resultado;
   const color = colorClasificacionHex(r.clasificacion);
@@ -504,7 +513,7 @@ function construirInformePDF(p) {
   const ALTO = 792;
 
   const presentation = SlidesApp.create('TEMP_Informe_' + p.nombreEvaluado);
-  presentation.getPageSize().setWidth(ANCHO).setHeight(ALTO);
+  presentation.setPageSize(ANCHO, ALTO);
 
   const slide = presentation.getSlides()[0];
   slide.getShapes().forEach(function(s){ s.remove(); });
