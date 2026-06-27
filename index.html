@@ -821,6 +821,8 @@ async function cargarProcesosAdmin(){
     const chipJefe = p.jefeCompleto ? '<span class="chip chip-ok">OK</span>' : '<span class="chip chip-pend">Pendiente</span>';
     const chipEnviado = p.informeEnviado ? '<span class="chip chip-enviado">Sí</span>' : '<span class="chip chip-pend">No</span>';
     const puedeReenviar = p.autoCompleto && p.jefeCompleto;
+    const emailEvaluado = p.emailEvaluado ? p.emailEvaluado : '<span style="color:var(--gris-600);">— sin email —</span>';
+    const emailEvaluador = p.emailEvaluador ? p.emailEvaluador : '<span style="color:var(--gris-600);">— sin email —</span>';
     return `
       <tr>
         <td>
@@ -829,6 +831,8 @@ async function cargarProcesosAdmin(){
         </td>
         <td style="text-align:center;">${chipAuto}</td>
         <td style="text-align:center;">${chipJefe}</td>
+        <td style="font-size:12px;">${emailEvaluado}</td>
+        <td style="font-size:12px;">${emailEvaluador}</td>
         <td style="text-align:center;">${chipEnviado}</td>
         <td style="text-align:center;">
           ${puedeReenviar ? `<button class="btn-secondary btn-sm" onclick="reenviarInformeAdmin('${p.id}')">Reenviar</button>` : '<span style="color:var(--gris-600);font-size:12px;">—</span>'}
@@ -845,6 +849,8 @@ async function cargarProcesosAdmin(){
             <th style="text-align:left;">Evaluado</th>
             <th>Estado Evaluado</th>
             <th>Estado Evaluador</th>
+            <th>Email Evaluado</th>
+            <th>Email Evaluador</th>
             <th>Informe Enviado</th>
             <th>Acción</th>
           </tr>
