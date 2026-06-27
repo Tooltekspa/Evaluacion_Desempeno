@@ -777,7 +777,7 @@ document.getElementById('btnLoginAdmin').addEventListener('click', async ()=>{
     show('loginAdminError');
     return;
   }
-  const resp = await api('loginAdmin', {rut: rut, clave: clave});
+  const resp = await api('loginAdmin', {rut: rut, clave: clave, userAgent: navigator.userAgent});
   document.getElementById('inputClaveAdmin').value = '';
   if(!resp.ok){
     showOnly('vista-login-admin');
