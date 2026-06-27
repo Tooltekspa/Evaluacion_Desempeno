@@ -252,6 +252,7 @@
     </div>
 
     <div id="adminProcesos">
+      <button class="btn-success" id="btnDescargarTodos" style="margin-bottom:16px;">⬇ Descargar todos los informes</button>
       <div id="listaProcesosAdmin"></div>
     </div>
 
@@ -881,6 +882,35 @@ async function eliminarProcesoAdmin(procesoId, nombreEvaluado){
   if(!resp.ok){ alert(resp.error || 'No fue posible eliminar el proceso.'); return; }
   cargarProcesosAdmin();
 }
+
+document.getElementById('btnDescargarTodos').addEventListener('click', async ()=>{
+  const respPeriodos = await api('adminListarPeriodosConInformes', {adminToken: ADMIN_TOKEN});
+  showOnly('vista-admin');
+  if(!respPeriodos.ok){ alert(respPeriodos.error || 'No fue posible obtener los periodos.'); return; }
+  if(respPeriodos.periodos.length === 0){
+    alert('Aún no hay informes enviados para descargar.');
+    return;
+  }
+
+  let periodoElegido;
+  if(respPeriodos.periodos.length === 1){
+    periodoElegido = respPeriodos.periodos[0];
+  }else{
+    const lista = respPeriodos.periodos.map((p,i)=> `${i+1}) ${p}`).join('\n');
+    const respuesta = prompt(`¿De qué periodo quieres descargar los informes?\n\n${lista}\n\nEscribe el número de la opción:`);
+    const indice = parseInt(respuesta, 10) - 1;
+    if(isNaN(indice) || indice < 0 || indice >= respPeriodos.periodos.length){
+      return; // cancelado o inválido
+    }
+    periodoElegido = respPeriodos.periodos[indice];
+  }
+
+  const resp = await api('adminDescargarTodosLosInformes', {adminToken: ADMIN_TOKEN, periodo: periodoElegido});
+  showOnly('vista-admin');
+  if(!resp.ok){ alert(resp.error || 'No fue posible generar el archivo.'); return; }
+  alert(`Listo: ${resp.cantidad} informe(s) del periodo "${periodoElegido}" empaquetados. Se abrirá la descarga.`);
+  window.open(resp.url, '_blank');
+});
 
 let NOMINA_HEADERS = [];
 
