@@ -488,19 +488,120 @@ function confirmarEnvio(procesoId, comentarioFinalJefe) {
  * y luego se exporta ese Doc como PDF. El archivo temporal se envía a la papelera.
  * Requiere: Servicios avanzados → Drive API activado en este proyecto.
  */
+/**
+ * Genera el informe como PDF tamaño carta, a color, con logo — usando Google Slides.
+ * NOTA TÉCNICA: HtmlService.getAs('application/pdf') no preserva colores de fondo,
+ * y Drive.Files.insert requiere servicios avanzados que pueden no estar disponibles
+ * según el proyecto de Google Cloud. SlidesApp es 100% nativo (sin activaciones extra)
+ * y exporta a PDF preservando colores y formas perfectamente.
+ */
 function construirInformePDF(p) {
-  const htmlInterno = construirInformeHTML(p, true); // true = versión imprimible (tamaño carta)
-  const blobHtml = Utilities.newBlob(htmlInterno, 'text/html', 'TEMP_' + p.nombreEvaluado + '.html');
+  const r = p.resultado;
+  const color = colorClasificacionHex(r.clasificacion);
 
-  const archivoTemp = Drive.Files.insert(
-    { title: 'TEMP_Informe_' + p.nombreEvaluado, mimeType: 'application/vnd.google-apps.document' },
-    blobHtml
+  // Tamaño carta vertical en puntos (1 pulgada = 72pt): 8.5in x 11in
+  const ANCHO = 612;
+  const ALTO = 792;
+
+  const presentation = SlidesApp.create('TEMP_Informe_' + p.nombreEvaluado);
+  presentation.getPageSize().setWidth(ANCHO).setHeight(ALTO);
+
+  const slide = presentation.getSlides()[0];
+  slide.getShapes().forEach(function(s){ s.remove(); });
+  slide.getPlaceholders().forEach(function(ph){ try { ph.asShape().remove(); } catch(e){} });
+
+  let y = 0;
+
+  // Header azul institucional con logo
+  const header = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, 0, ANCHO, 70);
+  header.getFill().setSolidFill('25638F');
+  header.getBorder().setTransparent();
+
+  try {
+    const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_BASE64), 'image/png', 'logo.png');
+    slide.insertImage(logoBlob, 18, 14, 42, 42 * (106/300));
+  } catch(e) {}
+
+  const tituloBox = slide.insertTextBox('Informe de Evaluación de Desempeño\n' + p.empresa + ' · ' + p.periodo, 75, 12, ANCHO-95, 46);
+  tituloBox.getText().getRange(0, tituloBox.getText().asString().indexOf('\n')).getTextStyle().setFontSize(15).setBold(true).setForegroundColor('FFFFFF');
+  const saltoIdx = tituloBox.getText().asString().indexOf('\n');
+  tituloBox.getText().getRange(saltoIdx+1, tituloBox.getText().asString().length).getTextStyle().setFontSize(10).setForegroundColor('D6E8F2');
+  y = 86;
+
+  // Evaluado / Evaluador
+  const infoBox = slide.insertTextBox(
+    'Evaluado: ' + p.nombreEvaluado + ' (' + p.cargo + ')\nEvaluador: ' + p.nombreEvaluador,
+    24, y, ANCHO-48, 36
   );
+  infoBox.getText().getTextStyle().setFontSize(10).setForegroundColor('222222');
+  y += 46;
 
-  const pdfBlob = DriveApp.getFileById(archivoTemp.id).getAs('application/pdf');
-  DriveApp.getFileById(archivoTemp.id).setTrashed(true);
+  // Resultado final destacado
+  const resultBox = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, 24, y, ANCHO-48, 56);
+  resultBox.getFill().setSolidFill(color);
+  resultBox.getBorder().setTransparent();
+  const resultText = slide.insertTextBox(String(r.resultadoFinal) + '\n' + r.clasificacion, 24, y+6, ANCHO-48, 44);
+  resultText.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+  const txt = resultText.getText();
+  const primerSalto = txt.asString().indexOf('\n');
+  txt.getRange(0, primerSalto).getTextStyle().setFontSize(22).setBold(true).setForegroundColor('FFFFFF');
+  txt.getRange(primerSalto+1, txt.asString().length).getTextStyle().setFontSize(11).setForegroundColor('FFFFFF');
+  y += 70;
+
+  // Tabla de atributos
+  const filasTabla = [
+    ['Atributo', 'Autoeval. (40%)', 'Jefatura (60%)'],
+    ['Comprender', String(p.auto.comprender), String(p.jefe.comprender)],
+    ['Desear', String(p.auto.desear), String(p.jefe.desear)],
+    ['Capacidad de Hacerlo', String(p.auto.capacidad), String(p.jefe.capacidad)],
+    ['Trabajamos Juntos Construyendo Valor', String(p.auto.trabajamos), String(p.jefe.trabajamos)],
+    ['Nos Comprometemos con un Servicio de Excelencia', String(p.auto.excelencia), String(p.jefe.excelencia)],
+    ['Nos Desafiamos a Mejorar Cada Día', String(p.auto.desafio), String(p.jefe.desafio)],
+    ['Cultivamos y Valoramos la Confianza', String(p.auto.confianza), String(p.jefe.confianza)],
+    ['CDC / Valores', 'CDC ' + r.cdcAuto + ' · Val ' + r.valoresAuto, 'CDC ' + r.cdcJefe + ' · Val ' + r.valoresJefe]
+  ];
+
+  const tabla = slide.insertTable(filasTabla.length, 3, 24, y, ANCHO-48, 22 * filasTabla.length);
+  for (let fi = 0; fi < filasTabla.length; fi++) {
+    for (let ci = 0; ci < 3; ci++) {
+      const celda = tabla.getCell(fi, ci);
+      celda.getText().setText(filasTabla[fi][ci]);
+      const estilo = celda.getText().getTextStyle().setFontSize(8.5);
+      if (fi === 0 || fi === filasTabla.length - 1) {
+        celda.getFill().setSolidFill('F4F6F8');
+        estilo.setBold(true).setForegroundColor('25638F');
+      } else {
+        estilo.setForegroundColor('222222');
+      }
+      if (ci > 0) celda.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+    }
+  }
+  y += 22 * filasTabla.length + 14;
+
+  // Comentario jefatura
+  const comentBox = slide.insertTextBox('Comentario Jefatura:\n' + (p.jefe.comentario || '—'), 24, y, ANCHO-48, 80);
+  const ctxt = comentBox.getText();
+  const idxSalto2 = ctxt.asString().indexOf('\n');
+  ctxt.getRange(0, idxSalto2).getTextStyle().setFontSize(10).setBold(true).setForegroundColor('25638F');
+  ctxt.getRange(idxSalto2+1, ctxt.asString().length).getTextStyle().setFontSize(10).setForegroundColor('222222');
+
+  // Footer
+  const footer = slide.insertTextBox(p.empresa + ' · Herramientas para construir el futuro', 24, ALTO-30, ANCHO-48, 20);
+  footer.getText().getTextStyle().setFontSize(8).setForegroundColor('888888');
+
+  presentation.saveAndClose();
+
+  const file = DriveApp.getFileById(presentation.getId());
+  const pdfBlob = file.getAs('application/pdf');
+  file.setTrashed(true);
 
   return pdfBlob;
+}
+
+function colorClasificacionHex(clasif) {
+  if (clasif === 'MEJORA NECESARIA') return 'E63946';
+  if (clasif === 'EFICAZ') return 'FFB703';
+  return '2A9D8F';
 }
 
 /** ---------------- DESCARGA MASIVA DE INFORMES (ZIP por periodo) ---------------- */
