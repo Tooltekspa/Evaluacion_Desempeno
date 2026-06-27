@@ -603,10 +603,12 @@ function construirInformePDF(p) {
   headerTabla.setColumnWidth(0, 60);
   try {
     const logoBlob = Utilities.newBlob(Utilities.base64Decode(LOGO_TOOLTEK_BASE64), 'image/png', 'logo.png');
-    celdaLogo.getChild(0).asParagraph().clear();
-    const img = celdaLogo.appendImage(logoBlob);
+    const parLogo = celdaLogo.getChild(0).asParagraph();
+    const img = parLogo.insertInlineImage(0, logoBlob);
     img.setWidth(36); img.setHeight(36 * (106/300));
-  } catch(e) {}
+  } catch(e) {
+    Logger.log('Error insertando logo: ' + e.message);
+  }
 
   const celdaTitulo = headerTabla.getCell(0, 1);
   celdaTitulo.setBackgroundColor('#25638F');
