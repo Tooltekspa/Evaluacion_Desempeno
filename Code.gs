@@ -93,6 +93,9 @@ function handle(e) {
       case 'adminReenviarInforme':
         result = adminReenviarInforme(body.adminToken, body.procesoId);
         break;
+      case 'adminEliminarProceso':
+        result = adminEliminarProceso(body.adminToken, body.procesoId);
+        break;
       case 'getProceso':
         result = getProcesoParaUsuario(body.rut, body.procesoId);
         break;
@@ -441,6 +444,7 @@ function confirmarEnvio(procesoId, comentarioFinalJefe) {
   if (!preview.ok) return preview;
 
   const html = construirInformeHTML(preview);
+  const pdfBlob = construirInformePDF(preview);
 
   const config = getConfig(ss);
   const destinatarios = [
@@ -450,10 +454,12 @@ function confirmarEnvio(procesoId, comentarioFinalJefe) {
   ].filter(function (e) { return e && e.toString().trim() !== ''; }).join(',');
 
   if (destinatarios) {
+    const nombreArchivo = 'Informe_Evaluacion_' + updatedRow[idx('Nombre_Evaluado')].toString().replace(/[^a-zA-Z0-9]+/g, '_') + '.pdf';
     MailApp.sendEmail({
       to: destinatarios,
       subject: 'Informe Evaluación de Desempeño — ' + updatedRow[idx('Nombre_Evaluado')] + ' (' + updatedRow[idx('Periodo')] + ')',
-      htmlBody: html
+      htmlBody: html,
+      attachments: [pdfBlob.setName(nombreArchivo)]
     });
   }
 
@@ -464,13 +470,21 @@ function confirmarEnvio(procesoId, comentarioFinalJefe) {
   return { ok: true, enviadoA: destinatarios };
 }
 
+/** Genera el mismo informe como PDF tamaño carta (Letter), usando HtmlService */
+function construirInformePDF(p) {
+  const htmlInterno = construirInformeHTML(p, true); // true = versión imprimible (tamaño carta)
+  const htmlOutput = HtmlService.createHtmlOutput(htmlInterno);
+  const blob = htmlOutput.getAs('application/pdf');
+  return blob;
+}
+
 function colorClasificacion(clasif) {
   if (clasif === 'MEJORA NECESARIA') return '#e63946';
   if (clasif === 'EFICAZ') return '#ffb703';
   return '#2a9d8f';
 }
 
-function construirInformeHTML(p) {
+function construirInformeHTML(p, paraPdf) {
   const r = p.resultado;
   const color = colorClasificacion(r.clasificacion);
   function fila(label, auto, jefe) {
@@ -478,7 +492,7 @@ function construirInformeHTML(p) {
       '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">' + auto + '</td>' +
       '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">' + jefe + '</td></tr>';
   }
-  return '' +
+  const cuerpo = '' +
     '<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;color:#222;">' +
     '<div style="background:#25638f;padding:20px 24px;color:#fff;">' +
     '<h2 style="margin:0;">Informe de Evaluación de Desempeño</h2>' +
@@ -509,6 +523,13 @@ function construirInformeHTML(p) {
     '<p><strong>Comentario Jefatura:</strong><br>' + (p.jefe.comentario || '—') + '</p>' +
     '<p style="font-size:12px;color:#888;margin-top:24px;">' + p.empresa + ' · Herramientas para construir el futuro</p>' +
     '</div></div>';
+
+  if (!paraPdf) return cuerpo;
+
+  // Versión imprimible: tamaño carta (8.5in x 11in) con márgenes estándar de 1.5cm
+  return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<style>@page{size:8.5in 11in;margin:1.5cm;} body{margin:0;}</style>' +
+    '</head><body>' + cuerpo + '</body></html>';
 }
 
 /** =======================================================================
@@ -569,6 +590,16 @@ function adminListarProcesos(token) {
 function adminReenviarInforme(token, procesoId) {
   if (!validarAdminToken(token)) return { ok: false, error: 'Sesión de administrador inválida o expirada.' };
   return confirmarEnvio(procesoId, null);
+}
+
+function adminEliminarProceso(token, procesoId) {
+  if (!validarAdminToken(token)) return { ok: false, error: 'Sesión de administrador inválida o expirada.' };
+  const ss = getSS();
+  const procesosSheet = getOrCreateProcesos(ss);
+  const found = findProcesoRow(procesosSheet, procesoId);
+  if (!found) return { ok: false, error: 'Proceso no encontrado.' };
+  procesosSheet.deleteRow(found.rowIndex);
+  return { ok: true };
 }
 
 function adminListarNomina(token) {
