@@ -523,7 +523,7 @@ function construirInformePDF(p) {
 
   // Header azul institucional con logo
   const header = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, 0, ANCHO, 56);
-  header.getFill().setSolidFill('25638F');
+  header.getFill().setSolidFill('#25638F');
   header.getBorder().setTransparent();
 
   try {
@@ -534,8 +534,8 @@ function construirInformePDF(p) {
   const tituloBox = slide.insertTextBox('Informe de Evaluación de Desempeño\n' + p.empresa + ' · ' + p.periodo, 64, 8, ANCHO-90, 42);
   const tituloTxt = tituloBox.getText();
   const saltoIdx = tituloTxt.asString().indexOf('\n');
-  tituloTxt.getRange(0, saltoIdx).getTextStyle().setFontSize(14).setBold(true).setForegroundColor('FFFFFF');
-  tituloTxt.getRange(saltoIdx+1, tituloTxt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('D6E8F2');
+  tituloTxt.getRange(0, saltoIdx).getTextStyle().setFontSize(14).setBold(true).setForegroundColor('#FFFFFF');
+  tituloTxt.getRange(saltoIdx+1, tituloTxt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('#D6E8F2');
   y = 66;
 
   // Evaluado / Evaluador (columna izquierda) + Resultado (columna derecha)
@@ -547,7 +547,7 @@ function construirInformePDF(p) {
     'Evaluado: ' + p.nombreEvaluado + ' (' + p.cargo + ')\nEvaluador: ' + p.nombreEvaluador,
     16, y, colIzqAncho - 16, 32
   );
-  infoBox.getText().getTextStyle().setFontSize(9.5).setForegroundColor('222222');
+  infoBox.getText().getTextStyle().setFontSize(9.5).setForegroundColor('#222222');
 
   // Resultado final destacado, a la derecha
   const resultBox = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, colDerX, y, colDerAncho, 48);
@@ -557,8 +557,8 @@ function construirInformePDF(p) {
   resultText.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
   const txt = resultText.getText();
   const primerSalto = txt.asString().indexOf('\n');
-  txt.getRange(0, primerSalto).getTextStyle().setFontSize(18).setBold(true).setForegroundColor('FFFFFF');
-  txt.getRange(primerSalto+1, txt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('FFFFFF');
+  txt.getRange(0, primerSalto).getTextStyle().setFontSize(18).setBold(true).setForegroundColor('#FFFFFF');
+  txt.getRange(primerSalto+1, txt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('#FFFFFF');
 
   y += 58;
 
@@ -583,10 +583,10 @@ function construirInformePDF(p) {
       celda.getText().setText(filasTabla[fi][ci]);
       const estilo = celda.getText().getTextStyle().setFontSize(8.5);
       if (fi === 0 || fi === filasTabla.length - 1) {
-        celda.getFill().setSolidFill('F4F6F8');
-        estilo.setBold(true).setForegroundColor('25638F');
+        celda.getFill().setSolidFill('#F4F6F8');
+        estilo.setBold(true).setForegroundColor('#25638F');
       } else {
-        estilo.setForegroundColor('222222');
+        estilo.setForegroundColor('#222222');
       }
       if (ci > 0) celda.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
     }
@@ -598,12 +598,12 @@ function construirInformePDF(p) {
   const comentBox = slide.insertTextBox('Comentario Jefatura:\n' + (p.jefe.comentario || '—'), 16, y, ANCHO-32, Math.max(espacioRestante, 30));
   const ctxt = comentBox.getText();
   const idxSalto2 = ctxt.asString().indexOf('\n');
-  ctxt.getRange(0, idxSalto2).getTextStyle().setFontSize(9).setBold(true).setForegroundColor('25638F');
-  ctxt.getRange(idxSalto2+1, ctxt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('222222');
+  ctxt.getRange(0, idxSalto2).getTextStyle().setFontSize(9).setBold(true).setForegroundColor('#25638F');
+  ctxt.getRange(idxSalto2+1, ctxt.asString().length).getTextStyle().setFontSize(9).setForegroundColor('#222222');
 
   // Footer
   const footer = slide.insertTextBox(p.empresa + ' · Herramientas para construir el futuro', 16, ALTO-18, ANCHO-32, 16);
-  footer.getText().getTextStyle().setFontSize(7).setForegroundColor('888888');
+  footer.getText().getTextStyle().setFontSize(7).setForegroundColor('#888888');
 
   presentation.saveAndClose();
 
@@ -615,9 +615,9 @@ function construirInformePDF(p) {
 }
 
 function colorClasificacionHex(clasif) {
-  if (clasif === 'MEJORA NECESARIA') return 'E63946';
-  if (clasif === 'EFICAZ') return 'FFB703';
-  return '2A9D8F';
+  if (clasif === 'MEJORA NECESARIA') return '#E63946';
+  if (clasif === 'EFICAZ') return '#FFB703';
+  return '#2A9D8F';
 }
 
 /** ---------------- DESCARGA MASIVA DE INFORMES (ZIP por periodo) ---------------- */
