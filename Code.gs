@@ -504,6 +504,15 @@ function autorizarPermisoSlides() {
   Logger.log('Permiso de Slides autorizado correctamente.');
 }
 
+/** Función temporal SOLO para forzar el prompt de autorización de Documents. Ejecutar manualmente una vez. */
+function autorizarPermisoDocs() {
+  const d = DocumentApp.create('TEST_AUTORIZACION_DOCS_BORRAR');
+  const id = d.getId();
+  d.saveAndClose();
+  DriveApp.getFileById(id).setTrashed(true);
+  Logger.log('Permiso de Documents autorizado correctamente.');
+}
+
 function construirInformePDF(p) {
   const r = p.resultado;
   const colorHex = colorClasificacionHex(r.clasificacion); // ej. '#FFB703'
